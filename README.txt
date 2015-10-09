@@ -1,3 +1,15 @@
+PC boot procedure
+1. CPU power on, jump to BIOS memory region.
+2. Start to execute BIOS code and initialize hardwares.
+3. Choose a bootable device and load its boot sector into memory.
+4. Jump to MBR code, switch CPU to 32bit protected mode, and load the kernel.
+4. OS is now booted.
+
+Difficulties
+1. Struggled with GDB for a pretty long time... Had no idea how to make it show things in the way I want.
+2. va_arg() seems like a built-in inline function and unable to set a break point with GDB.
+3. When implementing mon_backtrace() function, I spent a lot of time to figure out that eip means the eip value on the stack above *ebp......
+
 Ex 3
 Q1
 ljmp    $PROT_MODE_CSEG, $protcseg, this cause the CPU switch to 32 bit mode.
