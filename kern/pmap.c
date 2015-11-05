@@ -338,8 +338,15 @@ page_decref(struct Page* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
-	return NULL;
+	pde_t *pde_p=pgdir+PDX(va);
+	if (!(*pde_p&PTE_P)){
+		if (!create) return NULL;
+		struct Page *newPage=page_alloc(ALLOC_ZERO);
+		if (!newPage) return NULL;
+		++newPage->pp_ref;
+		*pde_p=page2pa(newPage)|PTE_U|PTE_W|PTE_P;
+	}
+	return (pte_t*)KADDR(PTE_ADDR(*pde_p))+PTX(va);
 }
 
 //
@@ -355,7 +362,13 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	// Fill this function in
+	size_t i;
+	pte_t *pte_p=NULL;
+	for (i=0;i<size;i+=PGSIZE){
+		pte_p=pgdir_walk(pgdir, (void*)(va+i), 1);
+		assert(pte_p!=NULL);
+		*pte_p=(pa+i)|perm|PTE_P;
+	}
 }
 
 //
@@ -385,7 +398,14 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 {
-	// Fill this function in
+	++pp->pp_ref;
+	page_remove(pgdir, va);
+	pte_t *pte_p=pgdir_walk(pgdir, va, 1);
+	if (!pte_p){
+		--pp->pp_ref;
+		return -E_NO_MEM;
+	}
+	*pte_p=page2pa(pp)|perm|PTE_P;
 	return 0;
 }
 
@@ -403,8 +423,10 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 struct Page *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
-	return NULL;
+	pte_t *pte_p=pgdir_walk(pgdir, va, 0);
+	if (!pte_p || !(*pte_p&PTE_P)) return NULL;
+	if (pte_store) *pte_store=pte_p;
+	return pa2page(PTE_ADDR(*pte_p));
 }
 
 //
@@ -425,7 +447,12 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+	pte_t *pte_p=NULL;
+	struct Page *pp=page_lookup(pgdir, va, &pte_p);
+	if (!pp) return;
+	page_decref(pp);
+	tlb_invalidate(pgdir, va);
+	*pte_p=0;
 }
 
 //
@@ -695,7 +722,7 @@ check_page(void)
 	assert(check_va2pa(kern_pgdir, 0x0) == page2pa(pp1));
 	assert(pp1->pp_ref == 1);
 	assert(pp0->pp_ref == 1);
-
+	
 	// should be able to map pp2 at PGSIZE because pp0 is already allocated for page table
 	assert(page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W) == 0);
 	assert(check_va2pa(kern_pgdir, PGSIZE) == page2pa(pp2));
