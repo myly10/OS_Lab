@@ -98,8 +98,10 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+	if (n==0) return nextfree;
+	char *ret=nextfree;
+	nextfree=ROUNDUP((char *)(nextfree+n), PGSIZE);
+	return ret;
 }
 
 // Set up a two-level page table:
@@ -121,7 +123,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+//	panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -143,7 +145,8 @@ mem_init(void)
 	// each physical page, there is a corresponding struct Page in this
 	// array.  'npages' is the number of physical pages in memory.
 	// Your code goes here:
-
+	n=npages*sizeof(struct Page);
+	pages=(struct Page*)boot_alloc(n);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -246,8 +249,17 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+	
+	page_free_list = NULL;
 	size_t i;
 	for (i = 0; i < npages; i++) {
+		if (i==0
+			|| (i>=PGNUM(IOPHYSMEM) && i<PGNUM(EXTPHYSMEM))
+			|| (i>=PGNUM(EXTPHYSMEM) && i<PGNUM(EXTPHYSMEM+(uint32_t)boot_alloc(0)-KERNBASE))){
+				pages[i].pp_ref=1;
+				pages[i].pp_link=NULL;
+				continue;
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -267,7 +279,14 @@ struct Page *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+	struct Page *pp=page_free_list;
+	if (!pp) return NULL;
+	page_free_list = pp->pp_link;
+	assert(pp->pp_ref == 0);
+	pp->pp_link=NULL;
+	if (alloc_flags & ALLOC_ZERO)
+		memset(page2kva(pp), 0, PGSIZE);
+	return pp;
 }
 
 //
@@ -277,7 +296,10 @@ page_alloc(int alloc_flags)
 void
 page_free(struct Page *pp)
 {
-	// Fill this function in
+	assert(pp->pp_ref==0);
+	assert(pp->pp_link == NULL);
+	pp->pp_link=page_free_list;
+	page_free_list=pp;
 }
 
 //
@@ -478,6 +500,7 @@ check_page_free_list(bool only_low_memory)
 			++nfree_extmem;
 	}
 
+	cprintf("nfree_basemem=%d\n", nfree_basemem);
 	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
 }
