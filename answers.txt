@@ -1,0 +1,2 @@
+Q1
+Variable x should have type uintptr_t. Since once we're in protected mode, all pointers can only be virtual address pointers.
