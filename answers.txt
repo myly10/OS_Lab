@@ -1,2 +1,31 @@
 Q1
 Variable x should have type uintptr_t. Since once we're in protected mode, all pointers can only be virtual address pointers.
+
+Q2
+1023	0xffc0000		Page table for top 4MB of phys memory
+1022	0xff80000		Page table for second to top 4MB of phys mem
+...
+960		0xf0000000		Page table for bottom 4MB of phys memory
+959		0xefc00000		Current page table used by mem_init()
+958		0xef800000		0xefbfe000-0xefc00000 Kernel stack
+						0xef800000-0xefbfe000 Invalid memory
+957     0xef400000      Current page table
+956		0xef000000		User pages
+...
+2		0x00800000		User pages
+1		0x00400000		User pages
+0		0x00000000
+
+Q3
+Because PTE_U is not set. This mechanism is privilege protection.
+
+Q4
+256MB. Because we tried to map all phys memory into 0xf0000000 to 0xffffffff.
+
+Q5
+4MB+4KB. We need 1 page dir and 1024 page tables.
+
+Q6
+jmp *%eax
+We can still run at low address because the low 4MB is already mapped to the physical low 4MB space in kern/entrypgdir.c.
+It's necessary because later the kern_pgdir will be loaded and virtual address of low 4MB will be discarded.
