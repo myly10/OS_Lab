@@ -1,0 +1,6 @@
+Part A
+Q1
+Because the hardware cannot distinguish different errors. Also using this method we can avoid lots of judging and branch switching, so that we can speed up interrupt/exception handling process.
+
+Q2
+Because calling "int 14" is violating its DPL limit.
