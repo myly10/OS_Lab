@@ -4,3 +4,10 @@ Because the hardware cannot distinguish different errors. Also using this method
 
 Q2
 Because calling "int 14" is violating its DPL limit.
+
+Part B
+Q3
+Because the IDT entry determined whether user can trigger this interrupt. Setting its DPL to 3 will allow that. Otherwise it will generate a general protection fault due to incorrect DPL.
+
+Q4
+Protect the system from buggy and malicious code.
