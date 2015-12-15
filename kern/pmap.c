@@ -270,7 +270,11 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+	int i, kstacktop_i;
+	for (i=0;i<NCPU;++i){
+		kstacktop_i=KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+		boot_map_region(kern_pgdir, kstacktop_i-KSTKSIZE , KSTKSIZE, PADDR(percpu_kstacks+i), PTE_W);
+	}
 }
 
 // --------------------------------------------------------------
@@ -311,19 +315,21 @@ page_init(void)
 	// free pages!
 	
 	page_free_list = NULL;
-	size_t i;
-	for (i = 0; i < npages; i++) {
-		if (i==0
-			|| (i>=PGNUM(IOPHYSMEM) && i<PGNUM(EXTPHYSMEM))
-			|| (i>=PGNUM(EXTPHYSMEM) && 
-i<PGNUM(EXTPHYSMEM+(uint32_t)boot_alloc(0)-KERNBASE))){
-				pages[i].pp_ref=1;
-				pages[i].pp_link=NULL;
-				continue;
+	size_t i=1;
+	for (; i < npages_basemem; ++i) {
+		if (i==PGNUM(MPENTRY_PADDR)){
+			pages[i].pp_ref=1;
+			pages[i].pp_link=NULL;
+			continue;
 		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+		page_free_list=pages+i;
+	}
+	for (i=PGNUM(PADDR(boot_alloc(0))); i<npages; ++i) {
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list=pages+i;
 	}
 }
 
@@ -643,7 +649,7 @@ check_page_free_list(bool only_low_memory)
 			++nfree_extmem;
 	}
 
-	cprintf("nfree_basemem=%d\n", nfree_basemem);
+//	cprintf("nfree_basemem=%d\n", nfree_basemem);
 	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
 }
