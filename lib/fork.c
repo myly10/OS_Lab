@@ -117,3 +117,24 @@ sfork(void)
 	panic("sfork not implemented");
 	return -E_INVAL;
 }
+
+envid_t
+pfork(int prio){
+	set_pgfault_handler(pgfault);
+	envid_t envid=sys_exofork();
+	uint32_t va;
+	if (envid==0) {
+		thisenv=envs+ENVX(sys_getenvid());
+		sys_nice(prio);
+		return 0;
+	}
+	if (envid<0) panic("pfork error envid=%d", envid);
+	for (va=0; va<USTACKTOP; va+=PGSIZE)
+		if ((vpd[PDX(va)]&(PTE_U|PTE_P))==(PTE_U|PTE_P) && (vpt[PGNUM(va)]&(PTE_P|PTE_U))==(PTE_P|PTE_U))
+			duppage(envid, PGNUM(va));
+	if (sys_page_alloc(envid, (void *)(UXSTACKTOP-PGSIZE), PTE_U|PTE_W|PTE_P)) panic("sys_page_alloc failed");
+	sys_env_set_pgfault_upcall(envid, thisenv->env_pgfault_upcall);
+	if (sys_env_set_status(envid, ENV_RUNNABLE)) panic("sys_env_set_status failed");
+	return envid;
+}
+

@@ -11,3 +11,32 @@ Because all envs are mapped in kern_pgdir at address UENVS, which is unchanged w
 Q4
 Using this mechanism can ensure the complete environment state is saved and can be restored later as if it was never interrupted.
 This happens at curenv->env_tf = *tf; .
+
+Challenge (Fork with priority)
+Implemented by changing sched_yield(), syscall(), and creating pfork(), sys_nice(). This makes the JOS able to run env with priority. The env with lowest priority number will be executed first.
+I modified hello.c to test with this. Here is the result.
+
+hello, world
+i am environment 00001008
+child 0 on
+child 0    off
+child 1 on
+child 1    off
+child 0    off
+child 1    off
+child 2 on
+child 2    off
+child 0    off
+child 1    off
+child 2    off
+child 3 on
+child 3    off
+child 0    off
+child 1    off
+child 2    off
+child 3    off
+child 2    off
+child 3    off
+child 3    off
+
+We can see it runs as expected. And grading is also all correct.
